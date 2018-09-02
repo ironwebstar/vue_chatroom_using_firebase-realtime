@@ -1,0 +1,129 @@
+<! DOCTYPE html>
+<html>
+    <head>
+        <title>Vue Chat Room using Firebase</title>
+    </head>
+    <script src="https://unpkg.com/vue"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.4.2/firebase.js"></script>
+    <script src="https://unpkg.com/native-toast@1.2.1/dist/native-toast.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/native-toast@1.2.1/dist/native-toast.css">
+    <body>
+        <div id="chat" class="container">
+            <h1>Vue Chat Room</h1>
+            <div class="card" v-for="message in messages">
+                <div class="card-body">
+                    <h6 class="cart-subtitle mb-2 text-muted">{{ message.nickname }}</h6>
+                    <p v-if="message !== editingMessage" class="card-text">{{ message.text }}</p>
+                    <div  v-if="message !== editingMessage">
+                        <a href="#" @click.prevent="deleteMessage(message)" class="card-link">Delete</a>
+                        <a href="#" @click.prevent="editMessage(message)" class="card-link">Edit</a>
+                    </div>
+                        
+                    <div v-if="message === editingMessage">
+                        <textarea class="form-control" v-model="messageText"></textarea>
+                        <a href="#" @click="updateMessage" class="card-link btn btn-primary">Save</a>
+                        <a href="#" @click="cancelEditing" class="card-link btn btn-primary">Cancel</a>
+                    </div>
+                        
+                </div>
+            </div>
+
+            <hr>
+
+            <form v-if="!editingMessage" @submit.prevent="storeMessage">
+                <div class="form-group">
+                    <label>Message : </label>
+                    <textarea class="form-control" v-model="messageText"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Nick Name : </label>
+                    <input type="text" class="form-control" v-model="nickname">
+                </div>
+                <button class="btn btn-primary">Send</button>
+            </form>
+        </div>
+
+        <script type="text/javascript">
+            // Initialize Firebase
+            const config = {
+                apiKey: "AIzaSyB9eWjuHw2xOE-dZm0bIO8SvVUOIiKtaqM",
+                authDomain: "vue-school-chat-room-419ed.firebaseapp.com",
+                databaseURL: "https://vue-school-chat-room-419ed.firebaseio.com",
+                projectId: "vue-school-chat-room-419ed",
+                storageBucket: "vue-school-chat-room-419ed.appspot.com",
+                messagingSenderId: "484133632496"
+            };
+            firebase.initializeApp(config);
+
+        
+            
+
+            const database = firebase.database();
+            const messagesRef = database.ref('messages')
+            //database.ref('messages').on('child_added', snapshot=>console.log(snapshot.val()));
+
+            new Vue({
+                el: "#chat",
+                data : {
+                    messages        :   [],
+                    messageText     :   '',
+                    nickname        :   'fwt-man',
+                    editingMessage  :   null,
+                },
+                methods: {
+                    storeMessage() {
+                        messagesRef.push().set({
+                            text:this.messageText, 
+                            nickname:this.nickname
+                        })
+                        this.messageText = ''
+                        
+                    },
+                    deleteMessage(message) {
+                        messagesRef.child(message.id).remove()
+                    },
+                    editMessage(message) {
+                        this.editingMessage = message,
+                        this.messageText = message.text
+                    },
+                    cancelEditing() {
+                        this.editingMessage = null
+                        this.messageText = ''
+                    },
+                    updateMessage() {
+                        messagesRef.child(this.editingMessage.id).update({text: this.messageText});
+                        this.cancelEditing()
+                    }
+                },
+               
+                created() {
+                    messagesRef.on('child_added', snapshot=> {
+                        this.messages.push({...snapshot.val(), id: snapshot.key})
+                        nativeToast({
+                            message: `New message by ${snapshot.val().nickname}`,
+                            type:'success'
+                        })
+                    })
+                    messagesRef.on('child_removed', snapshot=> {
+                        const deletedMessage = this.messages.find(message=>message.id === snapshot.key)
+                        const index = this.messages.indexOf(deletedMessage)
+                        this.messages.splice(index, 1)
+                        nativeToast({
+                            message: `Message deleted by ${snapshot.val().nickname}`,
+                            type:'warning'
+                        })
+                    }) 
+                    messagesRef.on('child_changed', snapshot=> {
+                        const updatedMessage = this.messages.find(message=>message.id === snapshot.key)
+                        updatedMessage.text = snapshot.val().text
+                        nativeToast({
+                            message: `Message edited by ${snapshot.val().nickname}`,
+                            type:'info'
+                        })
+                    })
+                },
+            });
+        </script>
+    </body>
+</html>
